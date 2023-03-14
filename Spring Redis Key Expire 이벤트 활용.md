@@ -36,7 +36,7 @@ public class RedisConfig {
 
 ## `@EnableRedisRepositories` 어노테이션의 작동 방식
 
-`@EnableRedisRepositories` 어노테이션은 다음과 같이 정의되어 있다.<sup>[2](#footnote_2)</sup>
+`@EnableRedisRepositories` 어노테이션은 다음과 같이 정의되어 있다.[^2]
 
 ```java
 /*
@@ -269,7 +269,7 @@ private void initMessageListenerContainer(){ // `MessageListenerContainer` 초�
     this.messageListenerContainer.afterPropertiesSet();
     // container 시작 처리
     this.messageListenerContainer.start();
-    }
+}
 ```
 
 ### Keyspace Notification 설정
@@ -287,8 +287,7 @@ private void initMessageListenerContainer(){ // `MessageListenerContainer` 초�
 String keyspaceNotificationsConfigParameter()default "Ex";
 ```
 
-위의 Redis의 Keyspace Notification 설정에서 보았듯이, Key Expire 이벤트를 수신하기 위해서는 최소한 `Ex` 옵션을 설정해야 한다. 이러한
-동작을 `@EnableRedisRepositories` 어노테이션을 사용하는 것 만으로 수행할 수 있다.
+위의 Redis의 Keyspace Notification 설정에서 보았듯이, Key Expire 이벤트를 수신하기 위해서는 최소한 `Ex` 옵션을 설정해야 한다. 이러한 동작을 `@EnableRedisRepositories` 어노테이션을 사용하는 것 만으로 수행할 수 있다.
 
 이 옵션 문자열은 `RedisKeyValueAdapter` 에서 사용된다.
 
@@ -335,29 +334,28 @@ public enum EnableKeyspaceEvents {
 private void initKeyExpirationListener(){
 
     // Expire 이벤트 리스너가 없는 경우
-    if(this.expirationListener.get()==null){
+    if(this.expirationListener.get()==null) {
+    
+        // 기본적인 Expire 이벤트를 처리하는 매핑 리스너 클래스를 생성한다.
+        MappingExpirationListener listener=new MappingExpirationListener(this.messageListenerContainer,this.redisOps,
+        this.converter);
+        // Expire 설정 파라미터 값을 설정한다. (이전에 본 기본값인 "Ex" 또는 별도의 설정 값)
+        listener.setKeyspaceNotificationsConfigParameter(keyspaceNotificationsConfigParameter);
+    
+        // 애플리케이션 이벤트 발행자가 설정되어 있는 경우, 매핑 리스너에 설정한다.
+        if(this.eventPublisher!=null){
+        listener.setApplicationEventPublisher(this.eventPublisher);
+        }
 
-    // 기본적인 Expire 이벤트를 처리하는 매핑 리스너 클래스를 생성한다.
-    MappingExpirationListener listener=new MappingExpirationListener(this.messageListenerContainer,this.redisOps,
-    this.converter);
-    // Expire 설정 파라미터 값을 설정한다. (이전에 본 기본값인 "Ex" 또는 별도의 설정 값)
-    listener.setKeyspaceNotificationsConfigParameter(keyspaceNotificationsConfigParameter);
-
-    // 애플리케이션 이벤트 발행자가 설정되어 있는 경우, 매핑 리스너에 설정한다.
-    if(this.eventPublisher!=null){
-    listener.setApplicationEventPublisher(this.eventPublisher);
+        // Expire 이벤트 리스너가 설정되어 있지 않은 경우, 매핑 리스너를 초기화 하고 설정한다.
+        if(this.expirationListener.compareAndSet(null,listener)){
+            listener.init();
+        }
     }
-
-    // Expire 이벤트 리스너가 설정되어 있지 않은 경우, 매핑 리스너를 초기화 하고 설정한다.
-    if(this.expirationListener.compareAndSet(null,listener)){
-    listener.init();
-    }
-    }
-    }
+}
 ```
 
-이 함수를 `ON_STARTUP` 으로 설정하면, 애플리케이션 시작 시에 `KeyExpirationEventMessageListener` 가 초기화 되고[2], `ON_DEMAND` 로 설정하면, 첫번째 expire
-시간이 설정된 데이터가 insert 될 때 `KeyExpirationEventMessageListener` 가 초기화 된다.
+이 함수를 `ON_STARTUP` 으로 설정하면, 애플리케이션 시작 시에 `KeyExpirationEventMessageListener` 가 초기화 되고, `ON_DEMAND` 로 설정하면, 첫번째 expire 시간이 설정된 데이터가 insert 될 때 `KeyExpirationEventMessageListener` 가 초기화 된다.
 
 ### ShadowCopy 설정
 
@@ -407,37 +405,34 @@ public enum ShadowCopy {
 private boolean keepShadowCopy(){
 
     switch(shadowCopy){
-    case OFF:
-    return false;
-    case ON:
-    return true;
-default:
-    return this.expirationListener.get()!=null;
+        case OFF:
+            return false;
+        case ON:
+            return true;
+        default:
+            return this.expirationListener.get()!=null;
     }
-    }
+}
 ```
 
 위의 함수는 `ShadowCopy` 가 `ON` 이거나 (`DEFAULT` 이고 Expire 이벤트 리스너가 있는 경우) `true`, 그렇지 않으면 `false` 를 반환한다.
 
 - put: `keepShadowCopy` 가 `true` 인 경우, `:phantom` 접미사를 가진 키를 생성한다.
 - delete: `keepShadowCopy` 가 `true` 인 경우, `:phantom` 접미사를 가진 키를 삭제한다.
-- update: `keepShadowCopy` 가 `true` 인 경우, `TTL` 시간이 초과된 경우 `:phantom` 접미사를 가진 키를 삭제한다. `TTL` 시간이 초과되지 않은 경우, `:phantom`
-  접미사를 가진 키의 값과 `TTL` 시간을 업데이트한다.
+- update: `keepShadowCopy` 가 `true` 인 경우, `TTL` 시간이 초과된 경우 `:phantom` 접미사를 가진 키를 삭제한다. `TTL` 시간이 초과되지 않은 경우, `:phantom` 접미사를 가진 키의 값과 `TTL` 시간을 업데이트한다.
 
-이 옵션이 켜져 있어야 `RedisKeyExpiredEvent` 를 사용할 수 있다. 하지만 문제점으로 `ShadowCopy` 가 켜져 있으면, `:phantom` 이라는 접미사를 가진 키가 생성되어 메모리 사용량이
-증가한다. `RedisKeyExpiredEvent` 를 사용하지 않는다면, `ShadowCopy` 를 `OFF` 로 설정해야 메모리 사용량을 줄일 수 있다.[^3],[^4]
+이 옵션이 켜져 있어야 `RedisKeyExpiredEvent` 를 `value` 값과 같이 사용할 수 있다. 하지만 문제점으로 `ShadowCopy` 가 켜져 있으면, `:phantom` 이라는 접미사를 가진 키가 생성되어 메모리 사용량이 증가한다. `RedisKeyExpiredEvent` 를 사용하지 않는다면, `ShadowCopy` 를 `OFF` 로 설정해야 메모리 사용량을 줄일 수 있다.[^3],[^4]
 
-`ShadowCopy` 옵션을 사용 시 다음과 같이, `:phantom` 이라는 접미사를 가진 키가 생성되는 것을 확인할 수 있다.
+`ShadowCopy` 옵션을 사용 시 다음과 같이, `:phantom` 이라는 접미사를 가진 키가 생성되는 것을 확인할 수 있다. **`phantom` 키 값은 원본 키 값보다 5분 (300초) 더 유지된다.**
 ![Redis Phantom](./img/redis_phantom.png)
 
 ## 왜 `RedisKeyExpiredEvent` 이벤트를 사용하는가?
 
-여러가지 이유가 있겠지만, 가장 중요한 것은 **개발자의 고통을 크게 줄여줄 수 있기 때문이라고 생각한다**. 다른 문서나 개발 예시들을 보면 비교적 로우 레벨인 `redisTemplate` 를 사용하는 것을 쉽게
-볼 수 있는데, redisTemplate를 사용하기 위해서는 다음과 같은 요구사항들과 과정을 거쳐야한다.
+여러가지 이유가 있겠지만, 가장 중요한 것은 **개발자의 고통을 크게 줄여줄 수 있기 때문이라고 생각한다**. 다른 문서나 개발 예시들을 보면 비교적 로우 레벨인 `redisTemplate` 를 사용하는 것을 쉽게 볼 수 있는데, redisTemplate를 사용하기 위해서는 다음과 같은 요구사항들과 과정을 거쳐야한다.
 
 - 모든 사소한 데이터의 CRUD 작업을 직접 구현해야 한다.
 - 모든 `TTL` 값을 직접 실행해야 한다.
-- `TTL` 값이 초과된 데이터를 직접 삭제해야 한다. (이 때, `TTL` 값이 초과된 데이터를 찾기 위해서 반복적으로 조회하거나 최소한의 모니터링이 필요하다.)
+- `TTL` 값이 초과된 데이터를 직접 관리해야 한다. (이 때, `TTL` 값이 초과된 데이터를 찾기 위해서 반복적으로 조회하거나, 최소한의 모니터링이 필요하다.)
 
 이 부분 중 하나라도 실수가 나거나 누락되면, 데이터가 정상적으로 삭제되지 않고 남아있는 문제가 발생할 수 있다. 이러한 실수를 줄이거나 방지할 수는 있겠지만, 개발자가 실수를 하지 않는다는 것은 불가능하다.
 그래서 `RedisKeyExpiredEvent` 를 사용하면, 이러한 고통을 크게 줄일 수 있다.
@@ -450,9 +445,9 @@ default:
 
 ```java
 @Override
-public void setApplicationContext(ApplicationContext applicationContext)throws BeansException{
-    this.eventPublisher=applicationContext;
-    }
+public void setApplicationContext(ApplicationContext applicationContext)throws BeansException {
+    this.eventPublisher = applicationContext;
+}
 ```
 
 `ApplicationContext` 를 받아서 `eventPublisher` 변수에 저장하는 것을 볼 수 있다. 이를 사용하여 `RedisKeyExpiredEvent` 를 발행한다.
@@ -634,11 +629,11 @@ static class MappingExpirationListener extends KeyExpirationEventMessageListener
 
 이와 유사한 방식으로 `KeyExpirationEventMessageListener` 를 상속받아 구현하면 된다. 나는 매우 게으른 사람이기에 위 방법을 사용하지 않는다.
 
-### `RedisKeyExpiredEvent` 를 `@EventListener` 로 처리한다.
+### `RedisKeyExpiredEvent` 를 `@EventListener` 로 처리
 
 매우 간편하고 실용적인 방법이다.
 
-관련하여 내가 직접 작성한 미천한 테스트 코드를 보자.[^5]
+관련하여 본인이 직접 작성한 미천한 테스트 코드를 보자.[^5]
 
 #### Domain.java
 
@@ -963,6 +958,8 @@ public class RedisExpiredTest {
 2023-03-14T18:31:02.389+09:00  INFO 173173 --- [enerContainer-3] c.e.i.expired.listener.ExpiredListener   : Unknown event class: class org.springframework.data.redis.core.RedisKeyExpiredEvent
 2023-03-14T18:31:02.390+09:00  INFO 173173 --- [enerContainer-3] c.e.i.expired.listener.ExpiredListener   : Unknown event value: Dumb(id=1, value=42.0)
 ```
+
+`RedisKeyExpiredEvent<Domain>` 클래스로 파라미터를 명시했음에도 불구하고, `RedisKeyExpiredEvent<Dumb>` 이벤트도 받아서 처리함을 확인할 수 있다.
 
 # 결론
 - `Spring Data Redis`를 사용하면 `Redis`의 `keyspace notification`을 이용하여 `expire` 이벤트를 받을 수 있다.
