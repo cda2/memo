@@ -2,7 +2,7 @@
 
 # Key Expire 이벤트 발생
 
-Redis 공식 문서[footnote]https://redis.io/docs/manual/keyspace-notifications[/footnote]에 따르면, Expire 이벤트를 수신하기 위해서는 최소한 다음과 같은 플래그 사용이 필요하다.
+Redis 공식 문서[^1] 에 따르면, Expire 이벤트를 수신하기 위해서는 최소한 다음과 같은 플래그 사용이 필요하다.
 
 -   E (**keyevent@** 접두사로 발행된 Keyevent 이벤트.)
 -   x (Key가 만료되었을 때 발생하는 이벤트.)
@@ -36,7 +36,7 @@ public class RedisConfig {
 
 ## `@EnableRedisRepositories` 어노테이션의 작동 방식
 
-`@EnableRedisRepositories` 어노테이션은 다음과 같이 정의되어 있다.[footnote] https://github.com/spring-projects/spring-data-redis/blob/main/src/main/java/org/springframework/data/redis/repository/configuration/EnableRedisRepositories.java#L56 [/footnote]
+`@EnableRedisRepositories` 어노테이션은 다음과 같이 정의되어 있다.[^2]
 
 ```java
 /*
@@ -421,7 +421,7 @@ private boolean keepShadowCopy(){
 -   delete: `keepShadowCopy` 가 `true` 인 경우, `:phantom` 접미사를 가진 키를 삭제한다.
 -   update: `keepShadowCopy` 가 `true` 인 경우, `TTL` 시간이 초과된 경우 `:phantom` 접미사를 가진 키를 삭제한다. `TTL` 시간이 초과되지 않은 경우, `:phantom` 접미사를 가진 키의 값과 `TTL` 시간을 업데이트한다.
 
-이 옵션이 켜져 있어야 `RedisKeyExpiredEvent` 를 `value` 값과 같이 사용할 수 있다. 하지만 문제점으로 `ShadowCopy` 가 켜져 있으면, `:phantom` 이라는 접미사를 가진 키가 생성되어 메모리 사용량이 증가한다. `RedisKeyExpiredEvent` 를 사용하지 않는다면, `ShadowCopy` 를 `OFF` 로 설정해야 메모리 사용량을 줄일 수 있다.[footnote] https://engineering.salesforce.com/lessons-learned-using-spring-data-redis-f3121f89bff9 [/footnote], [footnote] https://hyperconnect.github.io/2022/12/12/fix-increasing-memory-usage.html [/footnote]
+이 옵션이 켜져 있어야 `RedisKeyExpiredEvent` 를 `value` 값과 같이 사용할 수 있다. 하지만 문제점으로 `ShadowCopy` 가 켜져 있으면, `:phantom` 이라는 접미사를 가진 키가 생성되어 메모리 사용량이 증가한다. `RedisKeyExpiredEvent` 를 사용하지 않는다면, `ShadowCopy` 를 `OFF` 로 설정해야 메모리 사용량을 줄일 수 있다.[^3], [^4]
 
 `ShadowCopy` 옵션을 사용 시 다음과 같이, `:phantom` 이라는 접미사를 가진 키가 생성되는 것을 확인할 수 있다. **`phantom` 키 값은 원본 키 값보다 5분 (300초) 더 유지된다.**
 
@@ -429,7 +429,7 @@ private boolean keepShadowCopy(){
 
 ## 왜 `RedisKeyExpiredEvent` 이벤트를 사용하는가?
 
-여러가지 이유가 있겠지만, 가장 중요한 것은 **개발자의 고통을 크게 줄여줄 수 있기 때문이라고 생각한다**. 다른 문서나 개발 예시들을 보면 비교적 로우 레벨인 redisTemplate\` 를 사용하는 것을 쉽게 볼 수 있는데, redisTemplate를 사용하기 위해서는 다음과 같은 요구사항들과 과정을 거쳐야한다.
+여러가지 이유가 있겠지만, 가장 중요한 것은 **개발자의 고통을 크게 줄여줄 수 있기 때문이라고 생각한다**. 다른 문서나 개발 예시들을 보면 비교적 로우 레벨인 `redisTemplate` 를 사용하는 것을 쉽게 볼 수 있는데, `redisTemplate`를 사용하기 위해서는 다음과 같은 요구사항들과 과정을 거쳐야한다.
 
 -   모든 사소한 데이터의 CRUD 작업을 직접 구현해야 한다.
 -   모든 `TTL` 값을 직접 실행해야 한다.
@@ -443,7 +443,7 @@ private boolean keepShadowCopy(){
 
 이를 이해하기 위해서는 `KeyExpirationEventMessageListener` 의 내부 구현을 살펴보면 된다.
 
-이에 앞서 다시 `RedisKeyValueAdapter` 의 코드 일부분[footnote] https://github.com/spring-projects/spring-data-redis/blob/81f896693fda91b563ec33f4fdead43e5ca4470d/src/main/java/org/springframework/data/redis/core/RedisKeyValueAdapter.java#L721 [/footnote]을 살펴보면 다음과 같다.
+이에 앞서 다시 `RedisKeyValueAdapter` 의 코드 일부분[^5]을 살펴보면 다음과 같다.
 
 ```java
 @Override
@@ -640,7 +640,7 @@ static class MappingExpirationListener extends KeyExpirationEventMessageListener
 -   메시지를 `RedisKeyExpiredEvent` 로 변환하고, 발행한다.
 -   불필요한 `PhantomKey` 를 삭제한다.
 
-이와 유사한 방식으로 `KeyExpirationEventMessageListener` 를 상속받아 구현한 후에, `RedisMessageListenerContainer` 를 주입받아서 사용하면 된다.[footnote] https://github.com/spring-projects/spring-data-redis/blob/81f896693fda91b563ec33f4fdead43e5ca4470d/src/main/java/org/springframework/data/redis/listener/KeyExpirationEventMessageListener.java#L44 [/footnote]
+이와 유사한 방식으로 `KeyExpirationEventMessageListener` 를 상속받아 구현한 후에, `RedisMessageListenerContainer` 를 주입받아서 사용하면 된다.[^6]
 
 나는 매우 게으른 사람이기에 위 방법을 사용하지 않는다.
 
@@ -648,7 +648,7 @@ static class MappingExpirationListener extends KeyExpirationEventMessageListener
 
 매우 간편하고 실용적인 방법이다.
 
-관련하여 본인이 직접 작성한 미천한 테스트 코드를 보자.[footnote] https://github.com/cda2/ideas/tree/master/redis_key_expired_event_example [/footnote]
+관련하여 본인이 직접 작성한 미천한 테스트 코드를 보자.[^7] 
 
 #### Domain.java
 
@@ -985,6 +985,16 @@ public class RedisExpiredTest {
         -   `KeyExpirationEventMessageListener` 리스너 클래스를 상속, 구현하여 이벤트 컨테이너에 등록하여 이벤트를 수신할 수 있다.
         -   `@EventListener` 어노테이션과 `RedisKeyExpiredEvent` 클래스를 사용하여 이벤트를 수신할 수 있다.
             -   단, `RedisKeyExpiredEvent` 이벤트를 수신하더라도 특정 도메인 객체만을 수신할 수 없으므로 `value` 값 등을 사용하여 추가적으로 검증하여야 한다.
--   `AWS ElasticCache`를 사용하는 경우, `CONFIG` 명령어를 사용할 수 없어 `notify-keyspace-events` 변경을 다른 방법으로 해야 한다.[footnote] https://docs.spring.io/spring-data/data-redis/docs/current/reference/html/#redis.repositories.expirations [/footnote], [footnote] https://stackoverflow.com/questions/57046175/startup-error-using-spring-boot-starter-data-redis-on-aws-using-ssl [/footnote]
+-   `AWS ElasticCache`를 사용하는 경우, `CONFIG` 명령어를 사용할 수 없어 `notify-keyspace-events` 변경을 다른 방법으로 해야 한다.[^8], [^9]
 
 # Reference
+
+[^1]: https://redis.io/docs/manual/keyspace-notifications
+[^2]: https://github.com/spring-projects/spring-data-redis/blob/main/src/main/java/org/springframework/data/redis/repository/configuration/EnableRedisRepositories.java#L56 
+[^3]: https://engineering.salesforce.com/lessons-learned-using-spring-data-redis-f3121f89bff9 
+[^4]: https://hyperconnect.github.io/2022/12/12/fix-increasing-memory-usage.html 
+[^5]: https://github.com/spring-projects/spring-data-redis/blob/81f896693fda91b563ec33f4fdead43e5ca4470d/src/main/java/org/springframework/data/redis/core/RedisKeyValueAdapter.java#L721 
+[^6]: https://github.com/spring-projects/spring-data-redis/blob/81f896693fda91b563ec33f4fdead43e5ca4470d/src/main/java/org/springframework/data/redis/listener/KeyExpirationEventMessageListener.java#L44 
+[^7]: https://github.com/cda2/ideas/tree/master/redis_key_expired_event_example
+[^8]: https://docs.spring.io/spring-data/data-redis/docs/current/reference/html/#redis.repositories.expirations 
+[^9]: https://stackoverflow.com/questions/57046175/startup-error-using-spring-boot-starter-data-redis-on-aws-using-ssl 
